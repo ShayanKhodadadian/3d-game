@@ -1,316 +1,1150 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>آرزوی پایان دوری</title>
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #111; font-family: Tahoma, sans-serif; }
-        canvas { display: block; }
-        
-        /* پیام چرخش صفحه برای موبایل */
-        #orientation-overlay {
-            display: none;
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #222; color: white; z-index: 1000;
-            justify-content: center; align-items: center; text-align: center; font-size: 24px;
-        }
-        @media screen and (max-width: 768px) and (orientation: portrait) {
-            #orientation-overlay { display: flex; }
-        }
-        
-        /* نگهدارنده جوی استیک */
-        #joystick-zone {
-            display: none; position: absolute; bottom: 50px; left: 50px; width: 120px; height: 120px; z-index: 10;
-        }
-        @media screen and (max-width: 768px) and (orientation: landscape) {
-            #joystick-zone { display: block; }
-        }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>شایان و ملیسا</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBF1E6;
+    --ink:#3A2E2A;
+    --rose:#E98CA0;
+    --peach:#F4B99C;
+    --lav:#9C8FC9;
+    --gold:#F2C572;
+    --deep:#5B4A6F;
+    --shadow: 0 10px 30px rgba(58,46,42,.25);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none;}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#120c1c;
+    font-family:'Vazirmatn',sans-serif;}
+  #canvas-wrap{position:fixed;inset:0;}
+  canvas{display:block;width:100%;height:100%;}
 
-        /* باکس نمایش داستان و افکار */
-        #dialogue-box {
-            display: none; position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%);
-            width: 80%; max-width: 600px; background: rgba(0, 0, 0, 0.8);
-            color: white; padding: 20px; border-radius: 10px; border: 2px solid #555;
-            text-align: center; font-size: 18px; z-index: 20; line-height: 1.6;
-        }
+  #badge{
+    position:fixed; top:16px; right:16px; z-index:20;
+    background:rgba(251,241,230,.92); color:var(--ink);
+    padding:8px 16px; border-radius:999px; font-weight:700; font-size:13px;
+    box-shadow:var(--shadow); letter-spacing:.3px; backdrop-filter: blur(4px);
+    display:flex; align-items:center; gap:8px;
+  }
+  #badge .dot{width:8px;height:8px;border-radius:50%;background:var(--rose);}
 
-        /* دکمه راهنمای تعامل */
-        #interact-prompt {
-            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.9); color: black; padding: 10px 20px;
-            border-radius: 20px; font-weight: bold; z-index: 15; pointer-events: none;
-        }
-    </style>
-    <!-- کتابخانه‌های موتور سه‌بعدی و جوی‌استیک -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+  #loading{
+    position:fixed; inset:0; z-index:100; background:radial-gradient(circle at 50% 40%, #2c2140, #120c1c 70%);
+    display:flex; align-items:center; justify-content:center; flex-direction:column; color:var(--cream);
+    text-align:center; gap:18px; transition:opacity .8s ease;
+  }
+  #loading h1{font-size:clamp(26px,5vw,44px); margin:0; font-weight:800; letter-spacing:.5px;}
+  #loading p{margin:0; color:#c9bfe0; font-size:14px; max-width:480px; line-height:1.9; padding:0 20px;}
+  #startBtn{
+    margin-top:10px; padding:14px 42px; border:none; border-radius:999px; cursor:pointer;
+    background:linear-gradient(135deg,var(--rose),var(--peach)); color:#3a2416; font-weight:800; font-size:16px;
+    box-shadow:0 8px 24px rgba(233,140,160,.4); transition:transform .15s ease;
+  }
+  #startBtn:active{transform:scale(.96);}
+  #loading .heart{font-size:34px; animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.18);}}
+
+  #rotateOverlay{
+    position:fixed; inset:0; z-index:99; background:#120c1c; color:var(--cream);
+    display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px; text-align:center;
+  }
+  #rotateOverlay .phone{font-size:52px; animation:rotatePhone 1.8s ease-in-out infinite;}
+  @keyframes rotatePhone{0%,100%{transform:rotate(0deg);}50%{transform:rotate(90deg);}}
+  #rotateOverlay p{font-size:15px; color:#d8cfe8; max-width:280px; line-height:1.8;}
+
+  #dialogue{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+    width:min(640px,92vw); background:rgba(251,241,230,.97); color:var(--ink);
+    border-radius:20px; padding:18px 22px; box-shadow:var(--shadow);
+    font-size:16px; line-height:1.9; z-index:30; display:none; cursor:pointer;
+    border:2px solid rgba(233,140,160,.35);
+  }
+  #dialogue .tip{margin-top:6px; font-size:11px; color:#a99; opacity:.75;}
+
+  #prompt{
+    position:fixed; left:50%; bottom:120px; transform:translateX(-50%) translateY(10px);
+    background:rgba(58,46,42,.85); color:var(--cream); padding:10px 20px; border-radius:999px;
+    font-size:14px; font-weight:600; z-index:25; opacity:0; pointer-events:none; transition:all .25s ease;
+    display:flex; align-items:center; gap:8px;
+  }
+  #prompt.show{opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto;}
+  #prompt kbd{background:var(--cream); color:var(--ink); border-radius:6px; padding:2px 8px; font-weight:800; font-family:inherit;}
+
+  #fade{position:fixed; inset:0; background:#120c1c; opacity:0; z-index:60; pointer-events:none; transition:opacity 1s ease;}
+
+  #joyBase{
+    position:fixed; left:26px; bottom:26px; width:120px; height:120px; border-radius:50%;
+    background:rgba(251,241,230,.18); border:2px solid rgba(251,241,230,.4); z-index:40; touch-action:none;
+    display:none;
+  }
+  #joyNub{
+    position:absolute; left:50%; top:50%; width:52px; height:52px; border-radius:50%;
+    background:rgba(233,140,160,.85); transform:translate(-50%,-50%); box-shadow:0 4px 10px rgba(0,0,0,.3);
+  }
+
+  #keyHint{
+    position:fixed; left:20px; bottom:20px; z-index:15; color:var(--cream); font-size:13px;
+    background:rgba(58,46,42,.5); padding:10px 16px; border-radius:14px; line-height:1.6;
+  }
+  #keyHint b{color:var(--gold);}
+
+  #ending{
+    position:fixed; inset:0; z-index:90; background:radial-gradient(circle at 50% 30%, #3a2c58, #120c1c 75%);
+    display:none; align-items:center; justify-content:center; flex-direction:column; gap:16px; text-align:center; color:var(--cream);
+  }
+  #ending h2{font-size:clamp(24px,4.5vw,36px); margin:0; font-weight:800;}
+  #ending p{max-width:500px; color:#e6dcf5; font-size:15px; line-height:2; padding:0 20px;}
+  #replayBtn{
+    padding:13px 36px; border:none; border-radius:999px; cursor:pointer;
+    background:linear-gradient(135deg,var(--lav),var(--rose)); color:#241a34; font-weight:800; font-size:15px;
+    box-shadow:0 8px 24px rgba(156,143,201,.4);
+  }
+
+  @media (max-width:900px){ #keyHint{display:none;} }
+</style>
 </head>
 <body>
 
-    <div id="orientation-overlay">لطفا موبایل خود را به حالت افقی (Landscape) بچرخانید.</div>
-    <div id="joystick-zone"></div>
-    <div id="dialogue-box">متن داستان اینجا قرار می‌گیرد...</div>
-    <div id="interact-prompt">برای تعامل کلیک کنید (یا کلید E)</div>
+<div id="canvas-wrap"></div>
+<div id="badge"><span class="dot"></span><span id="badgeText">اتاق شایان</span></div>
+<div id="prompt"></div>
+<div id="dialogue"><div id="dialogueText"></div><div class="tip">برای ادامه لمس/کلیک کن</div></div>
+<div id="fade"></div>
+<div id="joyBase"><div id="joyNub"></div></div>
+<div id="keyHint">حرکت با <b>W A S D</b> — تعامل با <b>E</b></div>
 
-    <script>
-        // ۱. تنظیمات پایه صحنه و رندر
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x2a2a35);
-        scene.fog = new THREE.Fog(0x2a2a35, 10, 50);
+<div id="rotateOverlay">
+  <div class="phone">📱</div>
+  <p>گوشیت رو به حالت افقی بچرخون تا بازی شروع بشه</p>
+</div>
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+<div id="loading">
+  <div class="heart">💛</div>
+  <h1>شایان و ملیسا</h1>
+  <p>یه روزمرگیِ ساده... تا روزی که یه نفر همه‌چیزو رنگ کرد.<br/>همراه شایان باش.</p>
+  <button id="startBtn">شروع</button>
+</div>
 
-        // ۲. نورپردازی
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(10, 20, 10);
-        scene.add(dirLight);
+<div id="ending">
+  <div style="font-size:40px;">💛</div>
+  <h2 id="endingTitle">و از همون روز...</h2>
+  <p id="endingText"></p>
+  <button id="replayBtn">دوباره از اول</button>
+</div>
 
-        // ۳. کاراکتر شایان
-// ۳. کاراکتر شایان
-const geometry = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 16); // جایگزین شده برای سازگاری کامل با نسخه r128        const material = new THREE.MeshStandardMaterial({ color: 0x888888 });
-        const player = new THREE.Mesh(geometry, material);
-        player.position.y = 1;
-        scene.add(player);
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.149.0/three.min.js"></script><script>
+(function(){
+"use strict";
 
-        // ۴. کف اتاق
-        const floorGeo = new THREE.PlaneGeometry(50, 50);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        scene.add(floor);
+/* ============================================================
+   BASIC SETUP
+============================================================ */
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const wrap = document.getElementById('canvas-wrap');
 
-        camera.position.set(0, 5, 8);
-        camera.lookAt(player.position);
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+wrap.appendChild(renderer.domElement);
 
-        // ۵. متغیرهای کنترلی و وضعیت داستان
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-        let joyStickActive = false;
-        let joystickVector = { x: 0, y: 0 };
-        const speed = 0.1;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth/window.innerHeight, 0.1, 220);
 
-        const dialogueBox = document.getElementById('dialogue-box');
-        const interactPrompt = document.getElementById('interact-prompt');
+function resize(){
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w,h);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
 
-        let storyState = "ROUTINE";
-        let activeInteractable = null;
-        const interactables = [];
+/* ============================================================
+   PROCEDURAL TEXTURES (for a more natural, less "flat plastic" look)
+============================================================ */
+function speckleTexture(base, speckles, size, repeatX, repeatY){
+  size = size || 256;
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = base; ctx.fillRect(0,0,size,size);
+  for(let i=0;i<size*size*0.045;i++){
+    const col = speckles[Math.floor(Math.random()*speckles.length)];
+    ctx.globalAlpha = 0.12 + Math.random()*0.28;
+    ctx.fillStyle = col;
+    const s = 1 + Math.random()*3.5;
+    ctx.fillRect(Math.random()*size, Math.random()*size, s, s);
+  }
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeatX||4, repeatY||4);
+  tex.encoding = THREE.sRGBEncoding;
+  return tex;
+}
+function woodTexture(base, grain, size){
+  size = size || 256;
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = base; ctx.fillRect(0,0,size,size);
+  for(let y=0;y<size;y+=4){
+    ctx.globalAlpha = 0.08 + Math.random()*0.15;
+    ctx.fillStyle = grain;
+    ctx.fillRect(0, y + Math.sin(y*0.2)*3, size, 1.5);
+  }
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2,2);
+  tex.encoding = THREE.sRGBEncoding;
+  return tex;
+}
 
-        let isTransitioningColor = false;
-        const targetAmbientLightIntensity = 1.0;
-        const targetDirLightIntensity = 1.2;
-        const targetSceneColor = new THREE.Color(0x87CEEB);
+/* ============================================================
+   HELPERS FOR CUTE, SOFTLY-NATURAL LOW-POLY PROPS
+============================================================ */
+function stdMat(color, opts){
+  return new THREE.MeshStandardMaterial(Object.assign({color, roughness:0.88, metalness:0.04}, opts||{}));
+}
+function box(w,h,d,color,x,y,z,ry,opts){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), stdMat(color,opts));
+  m.position.set(x,y,z); if(ry) m.rotation.y = ry;
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function cyl(r1,r2,h,color,x,y,z,segs,opts){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,segs||10), stdMat(color,opts));
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true;
+  return m;
+}
+function ball(r,color,x,y,z,opts){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r,16,14), stdMat(color,opts));
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true;
+  return m;
+}
+function cone(r,h,color,x,y,z,opts){
+  const m = new THREE.Mesh(new THREE.ConeGeometry(r,h,10), stdMat(color,opts));
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true;
+  return m;
+}
+function rock(r,color,x,y,z){
+  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r,0), stdMat(color,{roughness:0.95}));
+  m.position.set(x,y,z);
+  m.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+  m.scale.set(1, 0.7+Math.random()*0.3, 1);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
 
-        // ۶. تعریف تابع ساخت شیء پیش از هرگونه فراخوانی
-        function createInteractableObject(color, x, z, width, depth, name, routineText) {
-            const geo = new THREE.BoxGeometry(width, 1, depth);
-            const mat = new THREE.MeshStandardMaterial({ color: color });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(x, 0.5, z);
-            scene.add(mesh);
-            
-            interactables.push({
-                mesh: mesh,
-                name: name,
-                routineText: routineText
-            });
-        }
+/* natural puffy tree: trunk + clustered foliage blobs */
+function makeTree(x,y,z, scale, trunkColor, foliageColor){
+  scale = scale || 1;
+  const g = new THREE.Group();
+  g.position.set(x,y,z);
+  const trunkH = 0.9*scale;
+  g.add(cyl(0.11*scale,0.15*scale,trunkH,trunkColor||0x6C4A32,0,trunkH/2,0));
+  const blobs = 4 + Math.floor(Math.random()*2);
+  const baseCol = new THREE.Color(foliageColor||0x3E8562);
+  for(let i=0;i<blobs;i++){
+    const r = (0.55 + Math.random()*0.35) * scale;
+    const px = (Math.random()-0.5)*0.7*scale;
+    const pz = (Math.random()-0.5)*0.7*scale;
+    const py = trunkH + 0.35*scale + Math.random()*0.5*scale;
+    const shade = baseCol.clone().offsetHSL(0, (Math.random()-0.5)*0.05, (Math.random()-0.5)*0.08);
+    const blob = ball(r, shade.getHex(), px, py, pz, {roughness:0.95});
+    g.add(blob);
+  }
+  return g;
+}
 
-        // ۷. چیدمان اشیاء اتاق
-        createInteractableObject(0x444488, -4, -3, 2, 4, "Bed", "تخت خواب. هر روز بیدار شدن... و دوباره همان چرخه تکراری.");
-        createInteractableObject(0x553311, 4, -4, 3, 1.5, "Desk", "میز کار. باید برای کلاس زبان آلمانی آماده شوم. تدریس... تکرار...");
-        createInteractableObject(0x111111, 4, 2, 2, 1, "Piano", "پیانو. می‌نوازم، اما ملودی‌ها رنگی ندارند.");
-        createInteractableObject(0x884422, -4, 3, 1, 1, "Guitar", "گیتار. گاهی می‌زنم تا زمان بگذرد.");
-        createInteractableObject(0xaaaaaa, 0, -5, 1, 1, "Laptop", "لپ‌تاپ. چت کردن با دوستان، هماهنگی باشگاه... چقدر خسته‌کننده.");
-        createInteractableObject(0x332211, 0, 4, 1.5, 0.2, "Door", "درب خروج. فعلاً دلیلی برای بیرون رفتن ندارم.");
+/* gradient sky dome (large sphere, vertex-colored, viewed from inside) */
+function makeSky(topColor, bottomColor){
+  const geo = new THREE.SphereGeometry(90, 24, 16);
+  const top = new THREE.Color(topColor), bottom = new THREE.Color(bottomColor);
+  const pos = geo.attributes.position;
+  const colors = [];
+  for(let i=0;i<pos.count;i++){
+    const y = pos.getY(i);
+    const t = THREE.MathUtils.clamp((y + 90) / 180, 0, 1);
+    const c = bottom.clone().lerp(top, Math.pow(t, 0.7));
+    colors.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const mat = new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.BackSide, fog:false});
+  return new THREE.Mesh(geo, mat);
+}
 
-        // ۸. توابع مدیریت دیالوگ و تعامل
-        function showDialogue(text) {
-            dialogueBox.innerHTML = text;
-            dialogueBox.style.display = 'block';
-            setTimeout(() => {
-                dialogueBox.style.display = 'none';
-            }, 4000);
-        }
+/* ============================================================
+   CHARACTER BUILDER (cute low-poly humanoid)
+============================================================ */
+function makeCharacter(opts){
+  const o = Object.assign({
+    skin:0xF2C9A1, hair:0x3B2B23, top:0x5B8BD0, bottom:0x33415C, hairStyle:'boy'
+  }, opts);
+  const g = new THREE.Group();
 
-        function handleInteraction() {
-            if (storyState === "ROUTINE") {
-                showDialogue(activeInteractable.routineText);
-                
-                if (activeInteractable.name === "Laptop") {
-                    setTimeout(() => {
-                        storyState = "MEET_MELISSA";
-                        showDialogue("یک پیام جدید... از شخصی به نام ملیسا. ساکن جلفا. چیزی در این چت متفاوت است...");
-                        
-                        setTimeout(() => {
-                            storyState = "IN_LOVE";
-                            isTransitioningColor = true;
-                            showDialogue("انگار دنیا تغییر کرده است. دیگر به خودم فکر نمی‌کنم. به آینده با ملیسا فکر می‌کنم...");
-                        }, 4000);
-                    }, 500);
-                }
-            } 
-            else if (storyState === "IN_LOVE") {
-                if (activeInteractable.name === "Guitar") {
-                    showDialogue("گیتار... برای ملیسا آهنگ‌های زیبایی خواهم ساخت.");
-                } else if (activeInteractable.name === "Piano") {
-                    showDialogue("حالا ملودی‌ها در ذهنم رنگ و بوی عشق دارند.");
-                } else if (activeInteractable.name === "Door") {
-                    showDialogue("باید به دیدنش بروم. به جلفا...");
-                    setTimeout(() => {
-                        loadJolfaScene();
-                    }, 3000);
-                } else {
-                    showDialogue("همه چیز حالا معنای جدیدی دارد. هدف من خوشبخت کردن اوست.");
-                }
-            }
-            else if (storyState === "JOLFA") {
-                if (activeInteractable.name === "Melissa") {
-                    showDialogue("بالاخره کنارمی... (او را در آغوش می‌گیرد). برایت گل آوردم و می‌خواهم برایت گیتار بزنم.");
-                    setTimeout(() => {
-                        triggerWakeUp();
-                    }, 5000);
-                }
-            }
-        }
+  const skinMat = stdMat(o.skin, {roughness:0.75});
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.62,0.32), stdMat(o.top,{roughness:0.7}));
+  body.position.set(0,0.95,0); body.castShadow = body.receiveShadow = true;
+  g.add(body);
 
-        function loadJolfaScene() {
-            storyState = "JOLFA";
-            interactables.forEach(obj => scene.remove(obj.mesh));
-            interactables.length = 0;
-            
-            floor.material.color.setHex(0x2d4c1e);
-            player.position.set(0, 1, 0);
-            
-            createInteractableObject(0x882222, -3, -2, 2, 4, "Car", "");
-            createInteractableObject(0xff99aa, 3, -5, 0.6, 0.6, "Melissa", "");
-            
-            showDialogue("جلفا... رسیدم. آنجا ایستاده است!");
-        }
+  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.46,0.22,0.3), stdMat(o.bottom,{roughness:0.8}));
+  hips.position.set(0,0.62,0); hips.castShadow = hips.receiveShadow = true;
+  g.add(hips);
 
-        function triggerWakeUp() {
-            storyState = "AWAKE";
-            scene.background.setHex(0x111111);
-            scene.fog.color.setHex(0x111111);
-            ambientLight.intensity = 0.2;
-            dirLight.intensity = 0.2;
-            floor.material.color.setHex(0x111111);
-            
-            interactables.forEach(obj => scene.remove(obj.mesh));
-            interactables.length = 0;
-            
-            dialogueBox.style.bottom = "40%";
-            dialogueBox.style.fontSize = "24px";
-            showDialogue("ناگهان از خواب بیدار شدم...<br>آرزو می‌کنم این دوری زودتر تمام شود و بیایم کنار کسی که با تمام وجودم عاشقشم.");
-        }
+  const head = new THREE.Group(); head.position.set(0,1.42,0);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.26,18,14), skinMat.clone());
+  head.add(face);
+  if(o.hairStyle === 'boy'){
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.275,16,12,0,Math.PI*2,0,Math.PI*0.62), stdMat(o.hair,{roughness:0.6}));
+    hair.position.set(0,0.05,0); hair.castShadow=true;
+    head.add(hair);
+  } else {
+    const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.28,16,12,0,Math.PI*2,0,Math.PI*0.62), stdMat(o.hair,{roughness:0.6}));
+    hairTop.position.set(0,0.05,0); hairTop.castShadow=true;
+    head.add(hairTop);
+    const hairL = box(0.14,0.42,0.2, o.hair, -0.2,-0.12,0, 0, {roughness:0.6});
+    const hairR = box(0.14,0.42,0.2, o.hair, 0.2,-0.12,0, 0, {roughness:0.6});
+    head.add(hairL, hairR);
+  }
+  const cheekMat = stdMat(0xF3A9A9, {roughness:0.9});
+  const cheekL = new THREE.Mesh(new THREE.SphereGeometry(0.045,8,8), cheekMat);
+  cheekL.position.set(-0.14,-0.04,0.225);
+  const cheekR = new THREE.Mesh(new THREE.SphereGeometry(0.045,8,8), cheekMat.clone());
+  cheekR.position.set(0.14,-0.04,0.225);
+  head.add(cheekL, cheekR);
+  g.add(head); g.userData.head = head;
 
-        // ۹. شنود رویدادهای حرکتی و کلیدها
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'KeyE' && activeInteractable) handleInteraction();
-            switch(e.code) {
-                case 'KeyW': moveForward = true; break;
-                case 'KeyS': moveBackward = true; break;
-                case 'KeyA': moveLeft = true; break;
-                case 'KeyD': moveRight = true; break;
-            }
-        });
-        document.addEventListener('keyup', (e) => {
-            switch(e.code) {
-                case 'KeyW': moveForward = false; break;
-                case 'KeyS': moveBackward = false; break;
-                case 'KeyA': moveLeft = false; break;
-                case 'KeyD': moveRight = false; break;
-            }
-        });
+  const armL = new THREE.Group(); armL.position.set(-0.32,1.18,0);
+  armL.add(box(0.13,0.5,0.16,o.skin,0,-0.25,0,0,{roughness:0.75}));
+  const armR = new THREE.Group(); armR.position.set(0.32,1.18,0);
+  armR.add(box(0.13,0.5,0.16,o.skin,0,-0.25,0,0,{roughness:0.75}));
+  g.add(armL, armR); g.userData.armL = armL; g.userData.armR = armR;
 
-        window.addEventListener('touchstart', () => {
-            if (activeInteractable) handleInteraction();
-        });
+  const legL = new THREE.Group(); legL.position.set(-0.13,0.5,0);
+  legL.add(box(0.16,0.5,0.18,0x2A2A33,0,-0.25,0));
+  const legR = new THREE.Group(); legR.position.set(0.13,0.5,0);
+  legR.add(box(0.16,0.5,0.18,0x2A2A33,0,-0.25,0));
+  g.add(legL, legR); g.userData.legL = legL; g.userData.legR = legR;
 
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        if (isTouchDevice) {
-            const manager = nipplejs.create({
-                zone: document.getElementById('joystick-zone'),
-                mode: 'static',
-                position: { left: '50%', top: '50%' },
-                color: 'white'
-            });
+  g.userData.walkT = 0;
+  return g;
+}
 
-            manager.on('move', (e, data) => {
-                joyStickActive = true;
-                joystickVector.x = Math.cos(data.angle.radian);
-                joystickVector.y = Math.sin(data.angle.radian);
-            });
-            manager.on('end', () => {
-                joyStickActive = false;
-                joystickVector = { x: 0, y: 0 };
-            });
-        }
+/* ============================================================
+   LIGHTING RIG
+============================================================ */
+const hemi = new THREE.HemisphereLight(0xfff1dc, 0x2a2440, 0.8);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffe0b0, 1.15);
+sun.position.set(6,10,4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1536,1536);
+sun.shadow.camera.left=-13; sun.shadow.camera.right=13;
+sun.shadow.camera.top=13; sun.shadow.camera.bottom=-13;
+sun.shadow.radius = 3;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const fill = new THREE.PointLight(0xE98CA0, 0.55, 14);
+fill.position.set(-4,3,-3);
+scene.add(fill);
 
-        // ۱۰. حلقه اصلی رندر و بازی
-        function animate() {
-            requestAnimationFrame(animate);
+/* ============================================================
+   WORLD GROUPS (scenes)
+============================================================ */
+const worldBedroom = new THREE.Group();
+const worldDrive = new THREE.Group();
+const worldReunion = new THREE.Group();
+scene.add(worldBedroom, worldDrive, worldReunion);
+worldDrive.visible = false;
+worldReunion.visible = false;
 
-            if (moveForward) player.position.z -= speed;
-            if (moveBackward) player.position.z += speed;
-            if (moveLeft) player.position.x -= speed;
-            if (moveRight) player.position.x += speed;
+/* ---------- BEDROOM SCENE ---------- */
+const bedroomInteractables = [];
+(function buildBedroom(){
+  const floorTex = woodTexture('#C9976B', '#8A5A3B');
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(9,0.2,9), stdMat(0xffffff,{map:floorTex, roughness:0.8}));
+  floor.position.set(0,-0.1,0); floor.receiveShadow=true;
+  worldBedroom.add(floor);
+  const rug = box(3,0.05,2,0xE98CA0,0.5,0.02,1.3,0,{roughness:0.95});
+  worldBedroom.add(rug);
 
-            if (joyStickActive) {
-                player.position.x += joystickVector.x * speed;
-                player.position.z -= joystickVector.y * speed;
-            }
+  const wallTex = speckleTexture('#F6E4D0', ['#EAD3B4','#FBF1E6'], 256, 3, 1.4);
+  const wallBack = box(9,4,0.2,0xffffff,0,2,-4.4,0,{map:wallTex});
+  worldBedroom.add(wallBack);
+  const wallLeft = box(0.2,4,9,0xffffff,-4.4,2,0,0,{map:wallTex});
+  worldBedroom.add(wallLeft);
 
-            let nearestObj = null;
-            let minDistance = 2.5;
+  const win = box(1.6,1.4,0.05,0x9FD3E8,-4.45,2.3,-1.5,0,{roughness:0.15, metalness:0.1});
+  win.material.transparent = true; win.material.opacity = 0.75;
+  worldBedroom.add(win);
+  const winFrame = box(1.75,1.55,0.12,0xffffff,-4.45,2.3,-1.5); worldBedroom.add(winFrame);
+  const skyPatch = new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.2), new THREE.MeshBasicMaterial({color:0xE6B8D0}));
+  skyPatch.position.set(-4.6,2.3,-1.5); skyPatch.rotation.y = Math.PI/2;
+  worldBedroom.add(skyPatch);
 
-            for (let i = 0; i < interactables.length; i++) {
-                let obj = interactables[i];
-                let distance = player.position.distanceTo(obj.mesh.position);
-                if (distance < minDistance) {
-                    nearestObj = obj;
-                    break;
-                }
-            }
+  // bed
+  const bedFrame = box(1.8,0.35,2.6,0x8A5A3B,-3.2,0.18,-2.4);
+  const mattress = box(1.7,0.25,2.5,0xFBF1E6,-3.2,0.42,-2.4,0,{roughness:0.95});
+  const blanket = box(1.72,0.18,1.5,0xE98CA0,-3.2,0.55,-2.9,0,{roughness:0.95});
+  const pillow = box(0.6,0.18,0.4,0xffffff,-3.2,0.58,-3.55,0,{roughness:0.95});
+  worldBedroom.add(bedFrame, mattress, blanket, pillow);
 
-            if (nearestObj) {
-                activeInteractable = nearestObj;
-                interactPrompt.style.display = 'block';
-            } else {
-                activeInteractable = null;
-                interactPrompt.style.display = 'none';
-            }
+  // guitar
+  const guitarGroup = new THREE.Group(); guitarGroup.position.set(-1.6,0,-3.9); guitarGroup.rotation.y = 0.3; guitarGroup.rotation.z = -0.15;
+  const gBody = new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.42,0.12,18), stdMat(0xA6673B,{roughness:0.55}));
+  gBody.rotation.x = Math.PI/2; gBody.position.y = 0.55; gBody.castShadow=true; guitarGroup.add(gBody);
+  const soundHole = new THREE.Mesh(new THREE.CircleGeometry(0.1,16), new THREE.MeshBasicMaterial({color:0x1c1210}));
+  soundHole.position.set(0,0.62,0); soundHole.rotation.x = -Math.PI/2; guitarGroup.add(soundHole);
+  const gNeck = box(0.08,0.75,0.06,0x5C3A22,0,1.15,0);
+  const gHead = box(0.16,0.14,0.06,0x3B2B23,0,1.55,0);
+  guitarGroup.add(gNeck, gHead);
+  worldBedroom.add(guitarGroup);
+  bedroomInteractables.push({
+    pos:new THREE.Vector3(-1.6,0,-3.9), radius:1.0, id:'guitar',
+    lines:['گیتار خوبه؛ شایان رو میاره تو حال خودش… قربون اون لبخندت.']
+  });
 
-            camera.position.x = player.position.x;
-            camera.position.z = player.position.z + 8;
+  // piano
+  const pianoGroup = new THREE.Group(); pianoGroup.position.set(2.7,0,-3.7);
+  pianoGroup.add(box(1.6,0.7,0.6,0x2B2B38,0,0.35,0,0,{roughness:0.4}));
+  pianoGroup.add(box(1.55,0.06,0.35,0xFBF1E6,0,0.71,0.15));
+  worldBedroom.add(pianoGroup);
+  bedroomInteractables.push({
+    pos:new THREE.Vector3(2.7,0,-3.7), radius:1.1, id:'piano',
+    lines:['وقتایی که هیچ‌کس خونه نبود، سوت‌وکور بودنِ خونه رو با پیانو جبران می‌کرد.']
+  });
 
-            if (isTransitioningColor) {
-                scene.background.lerp(targetSceneColor, 0.005);
-                scene.fog.color.lerp(targetSceneColor, 0.005);
-                
-                if (ambientLight.intensity < targetAmbientLightIntensity) ambientLight.intensity += 0.002;
-                if (dirLight.intensity < targetDirLightIntensity) dirLight.intensity += 0.002;
-                
-                if (ambientLight.intensity >= targetAmbientLightIntensity) {
-                    isTransitioningColor = false; 
-                }
-            }
+  // desk with class notes / calendar
+  const deskGroup = new THREE.Group(); deskGroup.position.set(3.3,0,0.5);
+  deskGroup.add(box(1.3,0.55,0.7,0x7A5A3E,0,0.28,0));
+  deskGroup.add(box(1.1,0.02,0.5,0xEDE3D2,0,0.56,0));
+  const calendar = box(0.5,0.6,0.04,0xE98CA0,-0.2,1.1,-0.34);
+  deskGroup.add(calendar);
+  worldBedroom.add(deskGroup);
+  bedroomInteractables.push({
+    pos:new THREE.Vector3(3.3,0,0.5), radius:1.1, id:'desk',
+    lines:['تدریس زبان آلمانی، باشگاه، کلاس… روزمرگی‌ای که انگار تمومی نداشت.']
+  });
 
-            renderer.render(scene, camera);
-        }
+  // gym bag corner
+  const bag = new THREE.Group(); bag.position.set(-3.3, 0, 1.6);
+  bag.add(box(0.55,0.4,0.32,0x4C5B7D,0,0.24,0));
+  bag.add(cyl(0.08,0.08,0.5,0x333333,0,0.55,0));
+  worldBedroom.add(bag);
+  bedroomInteractables.push({
+    pos:new THREE.Vector3(-3.3,0,1.6), radius:1.0, id:'gym',
+    lines:['باشگاه می‌رفت. با دوستاش گاهی بیرون می‌رفت… ولی همیشه یه چیزی کم بود.']
+  });
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+  // laptop
+  const laptopGroup = new THREE.Group(); laptopGroup.position.set(1.2,0.58,1.3);
+  const lapBase = box(0.5,0.04,0.36,0xDADADA,0,0,0,0,{roughness:0.3,metalness:0.3});
+  laptopGroup.add(lapBase);
+  const lapScreen = box(0.5,0.34,0.03,0x1B1B24,0,0.18,-0.17,0,{roughness:0.2,metalness:0.2});
+  lapScreen.rotation.x = -0.15; laptopGroup.add(lapScreen);
+  const glow = new THREE.PointLight(0x9C8FC9, 0, 2.2);
+  glow.position.set(0,0.3,-0.1); laptopGroup.add(glow);
+  worldBedroom.add(laptopGroup);
+  const laptopInteractable = {
+    pos:new THREE.Vector3(1.2,0,1.3), radius:1.05, id:'laptop', locked:true, glow:glow,
+    lines:[]
+  };
+  bedroomInteractables.push(laptopInteractable);
+  worldBedroom.userData.laptopInteractable = laptopInteractable;
 
-        animate();
-    </script>
+  const chair = new THREE.Group(); chair.position.set(3.3,0,1.35);
+  chair.add(box(0.42,0.06,0.42,0x6C4A32,0,0.42,0));
+  chair.add(box(0.42,0.5,0.06,0x6C4A32,0,0.68,-0.2));
+  worldBedroom.add(chair);
+})();
+
+/* ---------- DRIVE (transition) SCENE ---------- */
+const driveState = { car:null, t:0, x:0 };
+(function buildDrive(){
+  worldDrive.add(makeSky(0x3a2c58, 0x171126));
+  worldDrive.userData.fog = new THREE.Fog(0x22193a, 14, 62);
+
+  const roadGroup = new THREE.Group();
+  worldDrive.add(roadGroup);
+  worldDrive.userData.roadGroup = roadGroup;
+
+  const roadTex = speckleTexture('#3A3550', ['#332E48','#443E5E'], 128, 1, 8);
+  const grassTex = speckleTexture('#2F5E4A', ['#356A52','#295440'], 128, 3, 3);
+
+  for(let i=0;i<26;i++){
+    const seg = new THREE.Group();
+    seg.position.z = -i*8;
+    const road = box(6,0.1,8,0xffffff,0,-0.05,0,0,{map:roadTex});
+    const line = box(0.22,0.11,3.4,0xF2C572,0,0,0,0,{roughness:0.5});
+    const grassL = box(6,0.1,8,0xffffff,-6.2,-0.05,0,0,{map:grassTex});
+    const grassR = box(6,0.1,8,0xffffff,6.2,-0.05,0,0,{map:grassTex});
+    seg.add(road, line, grassL, grassR);
+    if(i%2===0){
+      seg.add(makeTree(-4.4,0,1.5, 1, 0x6C4A32, 0x3E7A54));
+      seg.add(makeTree(4.4,0,-2, 0.85, 0x6C4A32, 0x357048));
+    }
+    roadGroup.add(seg);
+  }
+
+  const car = new THREE.Group();
+  car.add(box(1.3,0.45,2.4,0xE98CA0,0,0.5,0,0,{roughness:0.35}));
+  car.add(box(1.05,0.35,1.2,0xF6E4D0,0,0.87,-0.15,0,{roughness:0.3,metalness:0.1}));
+  const wheelPositions = [[-0.65,0.22,0.8],[0.65,0.22,0.8],[-0.65,0.22,-0.8],[0.65,0.22,-0.8]];
+  wheelPositions.forEach(p=>{
+    const wheel = cyl(0.22,0.22,0.2,0x22202B,p[0],p[1],p[2],14,{roughness:0.6});
+    wheel.rotation.z = Math.PI/2;
+    car.add(wheel);
+  });
+  car.add(ball(0.09,0xFFF3C4,-0.4,0.5,1.18,{roughness:0.2}));
+  car.add(ball(0.09,0xFFF3C4,0.4,0.5,1.18,{roughness:0.2}));
+  car.position.set(0,0,3);
+  worldDrive.add(car);
+  driveState.car = car;
+
+  worldDrive.userData.stars = [];
+  for(let i=0;i<70;i++){
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.035,6,6), new THREE.MeshBasicMaterial({color:0xffffff}));
+    s.position.set((Math.random()-0.5)*40, 5+Math.random()*10, -Math.random()*60);
+    worldDrive.add(s);
+    worldDrive.userData.stars.push(s);
+  }
+})();
+
+/* ---------- REUNION SCENE ---------- */
+const reunionInteractables = [];
+let melissa, shayanReunion, reunionCar;
+(function buildReunion(){
+  worldReunion.add(makeSky(0xF2B27E, 0x6B4E82));
+  worldReunion.userData.fog = new THREE.Fog(0x6B4E82, 18, 55);
+
+  const grassTex = speckleTexture('#4B7C63', ['#548a6c','#3f6c56'], 200, 8, 8);
+  const ground = new THREE.Mesh(new THREE.BoxGeometry(24,0.2,24), stdMat(0xffffff,{map:grassTex}));
+  ground.position.set(0,-0.1,0); ground.receiveShadow = true;
+  worldReunion.add(ground);
+
+  const pathTex = speckleTexture('#D9C79A', ['#E2D2A8','#CBB988'], 128, 1, 10);
+  const path = new THREE.Mesh(new THREE.BoxGeometry(2.4,0.06,22), stdMat(0xffffff,{map:pathTex}));
+  path.position.set(0,0.01,0); path.receiveShadow = true;
+  worldReunion.add(path);
+
+  const river = box(3.2,0.06,24,0x6FA9C9,7,0.01,0,0,{roughness:0.25,metalness:0.15});
+  river.material.transparent = true; river.material.opacity = 0.85;
+  worldReunion.add(river);
+
+  for(let i=-2;i<=2;i++){
+    const lamp = new THREE.Group(); lamp.position.set(-3.2, 0, i*4);
+    lamp.add(cyl(0.05,0.06,1.6,0x3B2B23,0,0.8,0));
+    lamp.add(ball(0.12,0xF2C572,0,1.65,0,{emissive:0xF2C572, emissiveIntensity:0.4, roughness:0.3}));
+    const l = new THREE.PointLight(0xF2C572,0.7,4.5); l.position.set(0,1.65,0);
+    lamp.add(l);
+    worldReunion.add(lamp);
+  }
+
+  for(let i=-3;i<=3;i++){
+    worldReunion.add(makeTree(9.2, 0, i*3.4, 1.1 + Math.random()*0.3, 0x6C4A32, 0x3E8562));
+  }
+  for(let i=0;i<10;i++){
+    worldReunion.add(rock(0.15+Math.random()*0.15, 0x8a8078, -3.6-Math.random()*1.5, 0.05, (Math.random()-0.5)*20));
+  }
+  // small grass tufts scattered near the path for extra natural detail
+  for(let i=0;i<40;i++){
+    const gx = (Math.random()<0.5 ? -1:1) * (1.5 + Math.random()*3.5);
+    const gz = (Math.random()-0.5)*20;
+    const tuft = cone(0.05, 0.22, 0x3f7a55, gx, 0.11, gz, {roughness:0.9});
+    tuft.rotation.z = (Math.random()-0.5)*0.3;
+    worldReunion.add(tuft);
+  }
+
+  // picnic table
+  const table = new THREE.Group(); table.position.set(-1.6,0,1.5);
+  table.add(box(1.1,0.06,0.7,0xC9976B,0,0.55,0));
+  table.add(box(0.08,0.55,0.08,0x8A5A3B,-0.45,0.27,-0.28));
+  table.add(box(0.08,0.55,0.08,0x8A5A3B,0.45,0.27,-0.28));
+  table.add(box(0.08,0.55,0.08,0x8A5A3B,-0.45,0.27,0.28));
+  table.add(box(0.08,0.55,0.08,0x8A5A3B,0.45,0.27,0.28));
+  table.add(cyl(0.16,0.16,0.03,0xffffff,-0.22,0.59,0,16,{roughness:0.5}));
+  table.add(cyl(0.16,0.16,0.03,0xffffff,0.22,0.59,0,16,{roughness:0.5}));
+  worldReunion.add(table);
+
+  // flowers bunch (revealed later)
+  const flowers = new THREE.Group();
+  for(let i=0;i<5;i++){
+    const stem = cyl(0.015,0.015,0.3,0x3E8562,(i-2)*0.05,0.15,0);
+    const bloom = ball(0.06, i%2===0?0xE98CA0:0xF2C572, (i-2)*0.05,0.32,0,{emissive:i%2===0?0xE98CA0:0xF2C572, emissiveIntensity:0.15});
+    flowers.add(stem,bloom);
+  }
+  flowers.visible = false;
+  worldReunion.add(flowers);
+  worldReunion.userData.flowers = flowers;
+
+  // small gift boxes (revealed later, next to flowers)
+  const gifts = new THREE.Group();
+  const gift1 = box(0.22,0.16,0.22,0xE98CA0,-0.28,0.08,0.18,0,{roughness:0.5});
+  const ribbon1 = box(0.04,0.18,0.24,0xF2C572,-0.28,0.08,0.18);
+  const gift2 = box(0.18,0.13,0.18,0x9C8FC9,0.22,0.065,0.15,0,{roughness:0.5});
+  const ribbon2 = box(0.19,0.03,0.19,0xF2C572,0.22,0.065,0.15);
+  gifts.add(gift1, ribbon1, gift2, ribbon2);
+  gifts.visible = false;
+  worldReunion.add(gifts);
+  worldReunion.userData.gifts = gifts;
+
+  // parked car near the path, waiting for the "car" beat
+  reunionCar = new THREE.Group();
+  reunionCar.add(box(1.3,0.45,2.4,0x9C8FC9,0,0.5,0,0,{roughness:0.3}));
+  reunionCar.add(box(1.05,0.35,1.2,0xF6E4D0,0,0.87,-0.15,0,{roughness:0.3,metalness:0.1}));
+  [[-0.65,0.22,0.8],[0.65,0.22,0.8],[-0.65,0.22,-0.8],[0.65,0.22,-0.8]].forEach(p=>{
+    const wheel = cyl(0.22,0.22,0.2,0x22202B,p[0],p[1],p[2],14,{roughness:0.6});
+    wheel.rotation.z = Math.PI/2;
+    reunionCar.add(wheel);
+  });
+  reunionCar.position.set(2.6,0,5.5);
+  reunionCar.rotation.y = -0.5;
+  worldReunion.add(reunionCar);
+  worldReunion.userData.reunionCar = reunionCar;
+
+  // characters
+  shayanReunion = makeCharacter({top:0x5B8BD0, bottom:0x33415C, hairStyle:'boy'});
+  shayanReunion.position.set(0,0,8.5);
+  worldReunion.add(shayanReunion);
+
+  melissa = makeCharacter({top:0xE98CA0, bottom:0xF6E4D0, hairStyle:'girl', hair:0x2A1B14});
+  melissa.position.set(0,0,-2.5);
+  worldReunion.add(melissa);
+
+  reunionInteractables.push({
+    pos:new THREE.Vector3(0,0,-2.5), radius:2.6, id:'melissa',
+    lines:[]
+  });
+})();
+
+/* ============================================================
+   PLAYER
+============================================================ */
+const player = makeCharacter({top:0x5B8BD0, bottom:0x33415C, hairStyle:'boy'});
+player.position.set(0,0,1);
+worldBedroom.add(player);
+
+let activePlayer = player;
+let activeWorld = 'bedroom';
+let controlsEnabled = true;
+
+/* ============================================================
+   INPUT
+============================================================ */
+const keys = {};
+window.addEventListener('keydown', e=>{
+  keys[e.key.toLowerCase()] = true;
+  if(e.key.toLowerCase() === 'e') tryInteract();
+});
+window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+
+let joyVec = {x:0,y:0};
+let joyActive = false, joyId = null;
+const joyBase = document.getElementById('joyBase');
+const joyNub = document.getElementById('joyNub');
+
+function joyStart(id){ joyActive = true; joyId = id; }
+function joyMove(cx, cy){
+  const rect = joyBase.getBoundingClientRect();
+  const bx = rect.left + rect.width/2, by = rect.top + rect.height/2;
+  let dx = cx-bx, dy = cy-by;
+  const max = 42;
+  const len = Math.hypot(dx,dy);
+  if(len>max){ dx = dx/len*max; dy = dy/len*max; }
+  joyNub.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  joyVec.x = dx/max; joyVec.y = dy/max;
+}
+function joyEnd(){
+  joyActive = false; joyId = null;
+  joyNub.style.transform = 'translate(-50%,-50%)';
+  joyVec.x = 0; joyVec.y = 0;
+}
+joyBase.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  joyStart(t.identifier);
+  joyMove(t.clientX, t.clientY);
+}, {passive:false});
+joyBase.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){ if(t.identifier===joyId) joyMove(t.clientX,t.clientY); }
+}, {passive:false});
+window.addEventListener('touchend', e=>{
+  for(const t of e.changedTouches){ if(t.identifier===joyId) joyEnd(); }
+});
+
+document.getElementById('canvas-wrap').addEventListener('touchstart', ()=>{
+  if(promptEl.classList.contains('show')) tryInteract();
+}, {passive:true});
+
+/* ============================================================
+   CAMERA (fixed-angle follow)
+============================================================ */
+const camOffsetBedroom = new THREE.Vector3(6, 6.2, 8);
+const camOffsetReunion = new THREE.Vector3(7, 6.5, 9);
+let camOffset = camOffsetBedroom.clone();
+let camLookOffset = new THREE.Vector3(0,1,0);
+
+function updateCamera(target, instant){
+  const desired = target.clone().add(camOffset);
+  if(instant){ camera.position.copy(desired); }
+  else{ camera.position.lerp(desired, 0.08); }
+  const lookAt = target.clone().add(camLookOffset);
+  camera.lookAt(lookAt);
+}
+
+/* ============================================================
+   DIALOGUE SYSTEM
+============================================================ */
+const dialogueEl = document.getElementById('dialogue');
+const dialogueTextEl = document.getElementById('dialogueText');
+let dialogueQueue = [];
+let dialogueTyping = false;
+let dialogueCharIndex = 0;
+let dialogueTimer = null;
+let dialogueOnDone = null;
+let currentFullLine = '';
+
+function showDialogue(lines, onDone){
+  dialogueQueue = lines.slice();
+  dialogueOnDone = onDone || null;
+  controlsEnabled = false;
+  dialogueEl.style.display = 'block';
+  nextDialogueLine();
+}
+function nextDialogueLine(){
+  if(dialogueQueue.length === 0){
+    dialogueEl.style.display = 'none';
+    controlsEnabled = true;
+    const cb = dialogueOnDone; dialogueOnDone = null;
+    if(cb) cb();
+    return;
+  }
+  currentFullLine = dialogueQueue.shift();
+  dialogueTextEl.textContent = '';
+  dialogueCharIndex = 0;
+  dialogueTyping = true;
+  clearInterval(dialogueTimer);
+  dialogueTimer = setInterval(()=>{
+    dialogueCharIndex++;
+    dialogueTextEl.textContent = currentFullLine.slice(0, dialogueCharIndex);
+    if(dialogueCharIndex >= currentFullLine.length){
+      clearInterval(dialogueTimer);
+      dialogueTyping = false;
+    }
+  }, 26);
+}
+function advanceDialogue(){
+  if(dialogueTyping){
+    clearInterval(dialogueTimer);
+    dialogueTextEl.textContent = currentFullLine;
+    dialogueTyping = false;
+  } else {
+    nextDialogueLine();
+  }
+}
+dialogueEl.addEventListener('click', advanceDialogue);
+dialogueEl.addEventListener('touchstart', e=>{ e.stopPropagation(); advanceDialogue(); });
+
+/* ============================================================
+   INTERACTION PROMPT
+============================================================ */
+const promptEl = document.getElementById('prompt');
+let currentInteractable = null;
+
+function updatePromptText(){
+  promptEl.innerHTML = isTouch ? 'برای تعامل لمس کن' : 'تعامل <kbd>E</kbd>';
+}
+updatePromptText();
+
+function tryInteract(){
+  if(!controlsEnabled || !currentInteractable) return;
+  handleInteract(currentInteractable);
+}
+
+/* ============================================================
+   FADE / SCENE TRANSITIONS
+============================================================ */
+const fadeEl = document.getElementById('fade');
+function fadeOutIn(mid, duration){
+  duration = duration || 900;
+  fadeEl.style.transition = `opacity ${duration}ms ease`;
+  fadeEl.style.opacity = 1;
+  setTimeout(()=>{
+    if(mid) mid();
+    setTimeout(()=>{ fadeEl.style.opacity = 0; }, 60);
+  }, duration);
+}
+
+/* ============================================================
+   BEDROOM LOGIC
+============================================================ */
+const visited = new Set();
+const badgeText = document.getElementById('badgeText');
+
+function handleInteract(node){
+  if(activeWorld === 'bedroom'){
+    if(node.id === 'laptop'){
+      if(node.locked){
+        showDialogue(['هنوز چیزی برای دیدن نیست… شاید بعداً.']);
+        return;
+      }
+      showDialogue([
+        'شایان تازه از سفر برگشته بود.',
+        'یه شب گفت بذار برم یه‌کم سر موبایل؛ خودشم نمی‌دونست چرا، فقط همین‌جوری انجامش داد.',
+        'توی یه گروه، با ملیسا آشنا شد.',
+        'کم‌کم بیشتر و بیشتر باهم آشنا شدن؛ علایق همدیگه رو فهمیدن.',
+        'از یه جایی به بعد، شایان فهمید ملیسا عشق زندگیشه؛',
+        'کسی که می‌خواد کنارش پیر شه، و تمام عمر کنارش زندگی کنه.',
+        'هیچ‌وقت توی زندگیش همچین احساسی رو تجربه نکرده بود.',
+        'بهش پیشنهاد داد… و وقتی فهمید احساسش متقابله، با تمام وجودش خوشحال شد.',
+        'روز به روز، بیشتر عاشق ملیسا می‌شد.',
+        'ماه‌ها گذشت… و یک روز، شایان راه افتاد به سمت ملیسا.'
+      ], startDrive);
+      return;
+    }
+    visited.add(node.id);
+    showDialogue(node.lines, ()=>{
+      checkUnlockLaptop();
+    });
+  } else if(activeWorld === 'reunion'){
+    if(node.id === 'melissa' && !reunionSequenceStarted){
+      startReunionSequence();
+    }
+  }
+}
+
+function checkUnlockLaptop(){
+  const needed = ['guitar','piano','desk','gym'];
+  const done = needed.every(id=>visited.has(id));
+  const laptopNode = worldBedroom.userData.laptopInteractable;
+  if(done && laptopNode.locked){
+    laptopNode.locked = false;
+    laptopNode.lines = [];
+    laptopNode.glow.intensity = 1.4;
+  }
+}
+
+/* ============================================================
+   DRIVE LOGIC
+============================================================ */
+function startDrive(){
+  activeWorld = 'drive';
+  controlsEnabled = false;
+  badgeText.textContent = 'در جاده…';
+  fadeOutIn(()=>{
+    worldBedroom.visible = false;
+    worldDrive.visible = true;
+    scene.fog = worldDrive.userData.fog;
+    driveState.t = 0;
+    driveState.x = 0;
+    driveState.car.position.set(0,0,3);
+    camOffset = new THREE.Vector3(3.2, 3.0, 5.2);
+    updateCamera(driveState.car.position, true);
+  }, 1000);
+
+  setTimeout(()=>{
+    showDialogue(['جاده‌ها یکی‌یکی رد شدن…'], ()=>{ driveAutoStage = 1; });
+  }, 1400);
+}
+
+let driveAutoStage = 0;
+function driveTick(dt){
+  driveState.t += dt;
+  let steer = 0;
+  if(keys['a'] || keys['arrowleft']) steer -= 1;
+  if(keys['d'] || keys['arrowright']) steer += 1;
+  steer += joyVec.x;
+  driveState.x += steer * dt * 1.6;
+  driveState.x = Math.max(-1.8, Math.min(1.8, driveState.x));
+
+  const speed = 9;
+  worldDrive.userData.roadGroup.position.z += speed*dt;
+  if(worldDrive.userData.roadGroup.position.z > 8){
+    worldDrive.userData.roadGroup.position.z -= 8;
+  }
+  driveState.car.position.x += (driveState.x - driveState.car.position.x)*0.08;
+  driveState.car.rotation.z = (driveState.x - driveState.car.position.x)*0.4;
+  driveState.car.position.y = Math.sin(driveState.t*10)*0.02;
+
+  updateCamera(driveState.car.position, false);
+
+  if(driveAutoStage === 1 && driveState.t > 5){
+    driveAutoStage = 2;
+    showDialogue(['دلش تند می‌زد، هر چی نزدیک‌تر می‌شد.']);
+  }
+  if(driveAutoStage === 2 && driveState.t > 10){
+    driveAutoStage = 3;
+    showDialogue(['بالاخره به جُلفا رسید.'], startReunion);
+  }
+}
+
+/* ============================================================
+   REUNION LOGIC
+============================================================ */
+let reunionSequenceStarted = false;
+function startReunion(){
+  activeWorld = 'reunion';
+  controlsEnabled = false;
+  badgeText.textContent = 'جُلفا، کنار رودخانه';
+  fadeOutIn(()=>{
+    worldDrive.visible = false;
+    worldReunion.visible = true;
+    scene.fog = worldReunion.userData.fog;
+    activePlayer = shayanReunion;
+    activePlayer.position.set(0,0,8.5);
+    camOffset = camOffsetReunion.clone();
+    updateCamera(activePlayer.position, true);
+    controlsEnabled = true;
+  }, 1000);
+}
+
+function tweenPos(obj, target, duration, onDone){
+  const start = obj.position.clone();
+  const t0 = performance.now();
+  function step(){
+    const t = Math.min(1, (performance.now()-t0)/duration);
+    const ease = 1 - Math.pow(1-t, 3);
+    obj.position.lerpVectors(start, target, ease);
+    const dir = target.clone().sub(start);
+    if(dir.length() > 0.01){ obj.rotation.y = Math.atan2(dir.x, dir.z); }
+    if(t < 1) requestAnimationFrame(step);
+    else if(onDone) onDone();
+  }
+  step();
+}
+
+function startReunionSequence(){
+  reunionSequenceStarted = true;
+  controlsEnabled = false;
+
+  const flowers = worldReunion.userData.flowers;
+  const gifts = worldReunion.userData.gifts;
+  const car = worldReunion.userData.reunionCar;
+  const meet = new THREE.Vector3(0,0,2.8);
+  const meetM = new THREE.Vector3(0.42,0,3.0);
+  const meetS = new THREE.Vector3(-0.42,0,2.6);
+
+  showDialogue(['شایان و ملیسا، هر دو، بی‌اختیار دویدن سمت هم.'], ()=>{
+    let doneCount = 0;
+    function afterBoth(){ doneCount++; if(doneCount===2) afterRun(); }
+    tweenPos(shayanReunion, meetS, 750, afterBoth);
+    tweenPos(melissa, meetM, 750, afterBoth);
+  });
+
+  function afterRun(){
+    showDialogue(['بالاخره تو بغل هم بودن؛ همون آغوشی که این همه وقت منتظرش بودن.'], ()=>{
+      showDialogue(['و بوسیدنش.'], ()=>{
+        heartBurst(new THREE.Vector3(0,1.55,2.8));
+        setTimeout(goToCar, 1600);
+      });
+    });
+  }
+
+  function goToCar(){
+    showDialogue(['رفتن توی ماشین؛ موزیک گذاشتن، و فقط به‌هم گوش دادن.'], ()=>{
+      const carDoorS = car.position.clone().add(new THREE.Vector3(-0.35,0,0.1));
+      const carDoorM = car.position.clone().add(new THREE.Vector3(0.35,0,0.1));
+      let doneCount = 0;
+      function afterBoth(){ doneCount++; if(doneCount===2) afterCar(); }
+      tweenPos(shayanReunion, carDoorS, 900, afterBoth);
+      tweenPos(melissa, carDoorM, 900, afterBoth);
+    });
+  }
+
+  function afterCar(){
+    noteBurst(car.position.clone().add(new THREE.Vector3(0,1.1,0)));
+    showDialogue(['کلی حرف زدن؛ از رویاها، از آینده، از همه‌چیزهای کوچیک و بزرگ زندگیشون.'], ()=>{
+      setTimeout(giveGifts, 400);
+    });
+  }
+
+  function giveGifts(){
+    const backToPath = car.position.clone().add(new THREE.Vector3(-1.6,0,-0.6));
+    const mPos = car.position.clone().add(new THREE.Vector3(-0.9,0,-0.6));
+    let doneCount = 0;
+    function afterBoth(){ doneCount++; if(doneCount===2){
+      showDialogue(['شایان گل‌هایی که براش آورده بود رو بهش داد…', 'و کادوهایی که با عشق، مخصوص خودش انتخاب کرده بود.'], ()=>{
+        flowers.position.copy(mPos).add(new THREE.Vector3(0,0,0.3));
+        flowers.visible = true;
+        gifts.position.copy(mPos).add(new THREE.Vector3(0,0,0.5));
+        gifts.visible = true;
+        heartBurst(mPos.clone().add(new THREE.Vector3(0,1.4,0.3)));
+        setTimeout(finishStory, 2200);
+      });
+    }}
+    tweenPos(shayanReunion, backToPath, 800, afterBoth);
+    tweenPos(melissa, mPos, 800, afterBoth);
+  }
+}
+
+/* particle helpers */
+const particles = [];
+function heartBurst(pos){
+  for(let i=0;i<14;i++){
+    const spr = new THREE.Mesh(new THREE.SphereGeometry(0.055,8,8), new THREE.MeshBasicMaterial({color:0xE98CA0, transparent:true}));
+    spr.position.set(pos.x + (Math.random()-0.5)*0.6, pos.y + (Math.random()-0.5)*0.4, pos.z + (Math.random()-0.5)*0.6);
+    spr.userData.vy = 0.5 + Math.random()*0.7;
+    spr.userData.life = 0;
+    scene.add(spr);
+    particles.push(spr);
+  }
+}
+function noteBurst(pos){
+  for(let i=0;i<10;i++){
+    const spr = new THREE.Mesh(new THREE.SphereGeometry(0.05,8,8), new THREE.MeshBasicMaterial({color:0xF2C572, transparent:true}));
+    spr.position.set(pos.x + (Math.random()-0.5)*0.5, pos.y + (Math.random()-0.5)*0.3, pos.z + (Math.random()-0.5)*0.5);
+    spr.userData.vy = 0.4 + Math.random()*0.5;
+    spr.userData.life = 0;
+    scene.add(spr);
+    particles.push(spr);
+  }
+}
+
+/* ============================================================
+   ENDING (positive, no dream reveal)
+============================================================ */
+function finishStory(){
+  fadeEl.style.transition = 'opacity 1.4s ease';
+  fadeEl.style.opacity = 1;
+  setTimeout(()=>{
+    document.getElementById('ending').style.display = 'flex';
+    document.getElementById('endingText').textContent =
+      'شایان و ملیسا، کنار هم، کنار رودخونه‌ی جُلفا، شروع یه فصل تازه رو جشن گرفتن؛ فصلی که دیگه توش تنها نبودن.';
+  }, 1300);
+}
+document.getElementById('replayBtn').addEventListener('click', ()=>{ location.reload(); });
+
+/* ============================================================
+   MAIN LOOP
+============================================================ */
+let lastTime = performance.now();
+function animateCharacterWalk(ch, moving, dt){
+  if(!ch.userData) return;
+  if(moving){
+    ch.userData.walkT += dt*8;
+    const s = Math.sin(ch.userData.walkT)*0.5;
+    if(ch.userData.legL) ch.userData.legL.rotation.x = s;
+    if(ch.userData.legR) ch.userData.legR.rotation.x = -s;
+    if(ch.userData.armL) ch.userData.armL.rotation.x = -s;
+    if(ch.userData.armR) ch.userData.armR.rotation.x = s;
+  } else {
+    ch.userData.walkT += dt*2;
+    const idle = Math.sin(ch.userData.walkT)*0.06;
+    if(ch.userData.legL) ch.userData.legL.rotation.x *= 0.8;
+    if(ch.userData.legR) ch.userData.legR.rotation.x *= 0.8;
+    if(ch.userData.armL) ch.userData.armL.rotation.x *= 0.8;
+    if(ch.userData.armR) ch.userData.armR.rotation.x *= 0.8;
+    if(ch.userData.head) ch.userData.head.position.y = 1.42 + idle*0.5;
+  }
+}
+
+const WORLD_BOUNDS = {
+  bedroom: {minX:-4, maxX:4, minZ:-4, maxZ:4},
+  reunion: {minX:-9, maxX:9, minZ:-9.5, maxZ:9.5}
+};
+
+function frame(now){
+  const dt = Math.min(0.05, (now-lastTime)/1000);
+  lastTime = now;
+
+  if(activeWorld === 'bedroom' || activeWorld === 'reunion'){
+    let mx = 0, mz = 0;
+    if(controlsEnabled){
+      if(keys['w'] || keys['arrowup']) mz -= 1;
+      if(keys['s'] || keys['arrowdown']) mz += 1;
+      if(keys['a'] || keys['arrowleft']) mx -= 1;
+      if(keys['d'] || keys['arrowright']) mx += 1;
+      mx += joyVec.x;
+      mz += joyVec.y;
+    }
+    const len = Math.hypot(mx,mz);
+    let moving = false;
+    if(len > 0.05){
+      moving = true;
+      mx/=len; mz/=len;
+      const speed = 2.6;
+      const bounds = WORLD_BOUNDS[activeWorld];
+      let nx = activePlayer.position.x + mx*speed*dt;
+      let nz = activePlayer.position.z + mz*speed*dt;
+      nx = Math.max(bounds.minX, Math.min(bounds.maxX, nx));
+      nz = Math.max(bounds.minZ, Math.min(bounds.maxZ, nz));
+      activePlayer.position.x = nx;
+      activePlayer.position.z = nz;
+      activePlayer.rotation.y = Math.atan2(mx, mz);
+    }
+    animateCharacterWalk(activePlayer, moving, dt);
+    updateCamera(activePlayer.position, false);
+
+    const list = activeWorld === 'bedroom' ? bedroomInteractables : reunionInteractables;
+    let closest = null, closestDist = Infinity;
+    for(const node of list){
+      if(activeWorld === 'reunion' && node.id === 'melissa' && reunionSequenceStarted) continue;
+      const d = Math.hypot(activePlayer.position.x-node.pos.x, activePlayer.position.z-node.pos.z);
+      if(d < node.radius && d < closestDist){ closest = node; closestDist = d; }
+    }
+    currentInteractable = closest;
+    if(closest && controlsEnabled){ promptEl.classList.add('show'); }
+    else{ promptEl.classList.remove('show'); }
+
+  } else if(activeWorld === 'drive'){
+    driveTick(dt);
+  }
+
+  for(let i=particles.length-1;i>=0;i--){
+    const s = particles[i];
+    s.userData.life += dt;
+    s.position.y += s.userData.vy*dt;
+    s.material.opacity = Math.max(0, 1-s.userData.life/1.6);
+    s.scale.setScalar(1 + s.userData.life*0.4);
+    if(s.userData.life > 1.6){ scene.remove(s); particles.splice(i,1); }
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* ============================================================
+   BOOT / ORIENTATION / START
+============================================================ */
+scene.fog = new THREE.Fog(0x241a30, 12, 40);
+worldBedroom.add(makeSky(0x4a3a63, 0x241a30));
+camOffset = camOffsetBedroom.clone();
+updateCamera(player.position, true);
+
+function isLandscape(){ return window.innerWidth >= window.innerHeight; }
+function checkOrientation(){
+  const rotateOverlay = document.getElementById('rotateOverlay');
+  if(isTouch && !isLandscape() && gameStarted){
+    rotateOverlay.style.display = 'flex';
+  } else {
+    rotateOverlay.style.display = 'none';
+  }
+}
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', ()=>setTimeout(checkOrientation,200));
+
+let gameStarted = false;
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  gameStarted = true;
+  document.getElementById('loading').style.opacity = 0;
+  setTimeout(()=>{ document.getElementById('loading').style.display='none'; }, 850);
+  if(isTouch){
+    document.getElementById('joyBase').style.display = 'block';
+  }
+  checkOrientation();
+  requestAnimationFrame(frame);
+});
+
+})();
+</script>
 </body>
 </html>
