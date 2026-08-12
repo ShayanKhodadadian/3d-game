@@ -26,6 +26,20 @@
         @media screen and (max-width: 768px) and (orientation: landscape) {
             #joystick-zone { display: block; }
         }
+        /* باکس نمایش داستان و افکار */
+#dialogue-box {
+    display: none; position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%);
+    width: 80%; max-width: 600px; background: rgba(0, 0, 0, 0.8);
+    color: white; padding: 20px; border-radius: 10px; border: 2px solid #555;
+    text-align: center; font-size: 18px; z-index: 20; line-height: 1.6;
+}
+
+/* دکمه راهنمای تعامل (Press E / Tap) */
+#interact-prompt {
+    display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.9); color: black; padding: 10px 20px;
+    border-radius: 20px; font-weight: bold; z-index: 15; pointer-events: none;
+}
     </style>
     <!-- اضافه کردن Three.js و Nipple.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -33,9 +47,10 @@
 </head>
 <body>
 
-    <div id="orientation-overlay">لطفا موبایل خود را به حالت افقی (Landscape) بچرخانید.</div>
+    <div id="orientation-overlay">لطفا موبایل ßخود را به حالت افقی (Landscape) بچرخانید.</div>
     <div id="joystick-zone"></div>
-
+    <div id="dialogue-box">متن داستان اینجا قرار می‌گیرد...</div>
+<div id="interact-prompt">برای تعامل کلیک کنید (یا کلید E)</div>ß
     <script>
         // تنظیمات پایه صحنه
         const scene = new THREE.Scene();
@@ -115,29 +130,223 @@
                 joystickVector = { x: 0, y: 0 };
             });
         }
+        // --- سیستم مدیریت داستان و اشیاء ---
 
-        // حلقه رندر و منطق حرکت
-        function animate() {
-            requestAnimationFrame(animate);
+const dialogueBox = document.getElementById('dialogue-box');
+const interactPrompt = document.getElementById('interact-prompt');
 
-            // منطق حرکت WASD
-            if (moveForward) player.position.z -= speed;
-            if (moveBackward) player.position.z += speed;
-            if (moveLeft) player.position.x -= speed;
-            if (moveRight) player.position.x += speed;
+let storyState = "ROUTINE"; // وضعیت فعلی داستان: روزمره تکراری
+let activeInteractable = null; // شیءای که کاربر به آن نزدیک است
+// متغیرهای مدیریت رنگ و اتمسفر
+let isTransitioningColor = false;
+const targetAmbientLightIntensity = 1.0;
+const targetDirLightIntensity = 1.2;
+const targetSceneColor = new THREE.Color(0x87CEEB); // آبی آسمانی و زنده
 
-            // منطق حرکت جوی‌استیک موبایل
-            if (joyStickActive) {
-                player.position.x += joystickVector.x * speed;
-                player.position.z -= joystickVector.y * speed;
-            }
+// اضافه کردن درب خروج به اتاق برای سفر به جلفا
+createInteractableObject(0x332211, 0, 4, 1.5, 0.2, "Door", "درب خروج. فعلاً دلیلی برای بیرون رفتن ندارم.");
 
-            // دنبال کردن دوربین
-            camera.position.x = player.position.x;
-            camera.position.z = player.position.z + 8;
+// ساخت اشیاء ساده برای فاز اول (اتاق خواب)
+const interactables = [];
 
-            renderer.render(scene, camera);
+function createInteractableObject(color, x, z, width, depth, name, routineText) {
+    const geo = new THREE.BoxGeometry(width, 1, depth);
+    const mat = new THREE.MeshStandardMaterial({ color: color });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, 0.5, z);
+    scene.add(mesh);
+    
+    interactables.push({
+        mesh: mesh,
+        name: name,
+        routineText: routineText // متنی که در فاز اول نمایش داده می‌شود
+    });
+}
+
+// چیدمان اتاق شایان
+createInteractableObject(0x444488, -4, -3, 2, 4, "Bed", "تخت خواب. هر روز بیدار شدن... و دوباره همان چرخه تکراری.");
+createInteractableObject(0x553311, 4, -4, 3, 1.5, "Desk", "میز کار. باید برای کلاس زبان آلمانی آماده شوم. تدریس... تکرار...");
+createInteractableObject(0x111111, 4, 2, 2, 1, "Piano", "پیانو. می‌نوازم، اما ملودی‌ها رنگی ندارند.");
+createInteractableObject(0x884422, -4, 3, 1, 1, "Guitar", "گیتار. گاهی می‌زنم تا زمان بگذرد.");
+createInteractableObject(0xaaaaaa, 0, -5, 1, 1, "Laptop", "لپ‌تاپ. چت کردن با دوستان، هماهنگی باشگاه... چقدر خسته‌کننده.");
+
+// تابع نمایش دیالوگ
+function showDialogue(text) {
+    dialogueBox.innerHTML = text;
+    dialogueBox.style.display = 'block';
+    setTimeout(() => {
+        dialogueBox.style.display = 'none';
+    }, 4000); // مخفی شدن بعد از 4 ثانیه
+}
+
+// دکمه تعامل (E در کیبورد)
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyE' && activeInteractable) {
+        handleInteraction();
+    }
+});
+
+// تعامل با لمس صفحه برای موبایل (در صورت وجود دکمه راهنما)
+window.addEventListener('touchstart', (e) => {
+    if (activeInteractable) {
+        handleInteraction();
+    }
+});
+
+function handleInteraction() {
+    // فاز اول: روزمره
+    if (storyState === "ROUTINE") {
+        showDialogue(activeInteractable.routineText);
+        
+        if (activeInteractable.name === "Laptop") {
+            setTimeout(() => {
+                storyState = "MEET_MELISSA";
+                showDialogue("یک پیام جدید... از شخصی به نام ملیسا. ساکن جلفا. چیزی در این چت متفاوت است...");
+                
+                setTimeout(() => {
+                    // آغاز تغییر رنگ محیط
+                    storyState = "IN_LOVE";
+                    isTransitioningColor = true;
+                    showDialogue("انگار دنیا تغییر کرده است. دیگر به خودم فکر نمی‌کنم. به آینده با ملیسا فکر می‌کنم...");
+                }, 4000);
+            }, 500);
         }
+    } 
+    // فاز دوم: عاشق شدن و رنگ گرفتن زندگی
+    else if (storyState === "IN_LOVE") {
+        if (activeInteractable.name === "Guitar") {
+            showDialogue("گیتار... برای ملیسا آهنگ‌های زیبایی خواهم ساخت.");
+        } else if (activeInteractable.name === "Piano") {
+            showDialogue("حالا ملودی‌ها در ذهنم رنگ و بوی عشق دارند.");
+        } else if (activeInteractable.name === "Door") {
+            showDialogue("باید به دیدنش بروم. به جلفا...");
+            setTimeout(() => {
+                loadJolfaScene();
+            }, 3000);
+        } else {
+            showDialogue("همه چیز حالا معنای جدیدی دارد. هدف من خوشبخت کردن اوست.");
+        }
+    }
+    // فاز سوم: جلفا (دیدار)
+    else if (storyState === "JOLFA") {
+        if (activeInteractable.name === "Melissa") {
+            showDialogue("بالاخره کنارمی... (او را در آغوش می‌گیرد). برایت گل آوردم و می‌خواهم برایت گیتار بزنم.");
+            setTimeout(() => {
+                // فاز نهایی: بیداری
+                triggerWakeUp();
+            }, 5000);
+        }
+    }
+}
+        // حلقه رندر و منطق حرکت
+        // حلقه رندر و منطق حرکت
+function loadJolfaScene() {
+    storyState = "JOLFA";
+    
+    // 1. پاکسازی اشیاء اتاق از صحنه
+    interactables.forEach(obj => {
+        scene.remove(obj.mesh);
+    });
+    interactables.length = 0; // خالی کردن آرایه
+    
+    // 2. تغییر رنگ کف به چمن/محیط باز
+    floor.material.color.setHex(0x2d4c1e);
+    
+    // 3. قرار دادن شایان در نقطه شروع جدید
+    player.position.set(0, 1, 0);
+    
+    // 4. ایجاد ماشین شایان
+    createInteractableObject(0x882222, -3, -2, 2, 4, "Car", "");
+    
+    // 5. ایجاد کاراکتر ملیسا
+    createInteractableObject(0xff99aa, 3, -5, 0.6, 0.6, "Melissa", "");
+    
+    showDialogue("جلفا... رسیدم. آنجا ایستاده است!");
+}
+
+function triggerWakeUp() {
+    storyState = "AWAKE";
+    
+    // بازگشت ناگهانی به تاریکی (تضاد احساسی)
+    scene.background.setHex(0x111111);
+    scene.fog.color.setHex(0x111111);
+    ambientLight.intensity = 0.2;
+    dirLight.intensity = 0.2;
+    floor.material.color.setHex(0x111111);
+    
+    // حذف تمام اشیاء برای نمایش فضای خالی و خلاء
+    interactables.forEach(obj => {
+        scene.remove(obj.mesh);
+    });
+    interactables.length = 0;
+    
+    // نمایش پیام نهایی
+    dialogueBox.style.bottom = "40%";
+    dialogueBox.style.fontSize = "24px";
+    showDialogue("ناگهان از خواب بیدار شدم...<br>آرزو می‌کنم این دوری زودتر تمام شود و بیایم کنار کسی که با تمام وجودم عاشقشم.");
+}
+function animate() {
+    requestAnimationFrame(animate);
+
+    // منطق حرکت WASD
+    if (moveForward) player.position.z -= speed;
+    if (moveBackward) player.position.z += speed;
+    if (moveLeft) player.position.x -= speed;
+    if (moveRight) player.position.x += speed;
+
+    // منطق حرکت جوی‌استیک موبایل
+    if (joyStickActive) {
+        player.position.x += joystickVector.x * speed;
+        player.position.z -= joystickVector.y * speed;
+    }
+
+    // --- منطق بررسی مجاورت (Proximity Check) ---
+    let nearestObj = null;
+    let minDistance = 2.5; // شعاع تعامل
+
+    for (let i = 0; i < interactables.length; i++) {
+        let obj = interactables[i];
+        let distance = player.position.distanceTo(obj.mesh.position);
+        
+        if (distance < minDistance) {
+            nearestObj = obj;
+            break;
+        }
+    }
+
+    if (nearestObj) {
+        activeInteractable = nearestObj;
+        interactPrompt.style.display = 'block';
+    } else {
+        activeInteractable = null;
+        interactPrompt.style.display = 'none';
+    }
+    // ---------------------------------------------
+
+    // دنبال کردن دوربین
+    camera.position.x = player.position.x;
+    camera.position.z = player.position.z + 8;
+    // --- منطق تغییر تدریجی رنگ (Lerp) در زمان آشنایی ---
+    if (isTransitioningColor) {
+        // تغییر رنگ پس‌زمینه و مه
+        scene.background.lerp(targetSceneColor, 0.005);
+        scene.fog.color.lerp(targetSceneColor, 0.005);
+        
+        // افزایش تدریجی شدت نور
+        if (ambientLight.intensity < targetAmbientLightIntensity) {
+            ambientLight.intensity += 0.002;
+        }
+        if (dirLight.intensity < targetDirLightIntensity) {
+            dirLight.intensity += 0.002;
+        }
+        
+        // توقف حلقه Lerp وقتی به هدف نزدیک شدیم
+        if (ambientLight.intensity >= targetAmbientLightIntensity) {
+            isTransitioningColor = false; 
+        }
+    }
+    renderer.render(scene, camera);
+}
 
         // مدیریت تغییر اندازه صفحه
         window.addEventListener('resize', () => {
