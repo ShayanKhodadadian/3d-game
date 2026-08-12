@@ -1504,8 +1504,8 @@
         function driveTick(dt) {
           driveState.t += dt;
           let steer = 0;
-          if (keys["a"] || keys["arrowleft"]) steer -= 1;
-          if (keys["d"] || keys["arrowright"]) steer += 1;
+          if (keys["a"] || keys["a"]) steer -= 1;
+          if (keys["d"] || keys["d"]) steer += 1;
           steer += joyVec.x;
           driveState.x += steer * dt * 1.6;
           driveState.x = Math.max(-1.8, Math.min(1.8, driveState.x));
@@ -1774,10 +1774,10 @@
             let mx = 0,
               mz = 0;
             if (controlsEnabled) {
-              if (keys["w"] || keys["arrowup"]) mz -= 1;
-              if (keys["s"] || keys["arrowdown"]) mz += 1;
-              if (keys["a"] || keys["arrowleft"]) mx -= 1;
-              if (keys["d"] || keys["arrowright"]) mx += 1;
+              if (keys["w"] || keys["w"]) mz -= 1;
+              if (keys["s"] || keys["s"]) mz += 1;
+              if (keys["a"] || keys["a"]) mx -= 1;
+              if (keys["d"] || keys["d"]) mx += 1;
               mx += joyVec.x;
               mz += joyVec.y;
             }
